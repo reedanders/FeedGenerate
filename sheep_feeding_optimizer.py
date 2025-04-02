@@ -50,6 +50,9 @@ supplements = {
     # Feed mill supplements
     "Corn": {"cost": 0.15, "protein": 9, "tdn": 90, "dm": 88, "min_intake": 0, "max_intake": 3.0, "is_block": False},
     "Soybean_Meal": {"cost": 0.30, "protein": 44, "tdn": 80, "dm": 89, "min_intake": 0, "max_intake": 2.0, "is_block": False},
+    "Wheat_Middlings": {"cost": 0.13, "protein": 16, "tdn": 77, "dm": 89, "min_intake": 0, "max_intake": 2.5, "is_block": False},
+    "Molasses": {"cost": 0.20, "protein": 4, "tdn": 75, "dm": 75, "min_intake": 0, "max_intake": 0.5, "is_block": False},
+    "Limestone": {"cost": 0.05, "protein": 0, "tdn": 0, "dm": 99, "min_intake": 0, "max_intake": 0.1, "is_block": False},
     
     # Feed store supplements
     "Purina_Accuration": {"cost": 129.99 / 200, "protein": 25, "tdn": 85, "dm": 90, "min_intake": 0, "max_intake": 1.0, "is_block": True},
