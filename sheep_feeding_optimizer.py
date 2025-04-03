@@ -3,10 +3,30 @@ import pulp
 # Define the model
 model = pulp.LpProblem("Sheep_Nutrition_Optimization", pulp.LpMinimize)
 
-# Nutritional requirements for flushing stage
-protein_requirement_pct = 9.19  # Protein requirement (%)
-tdn_requirement_pct = 59.46  # TDN requirement (%)
-daily_dmi_limit = 4.0  # Maximum Dry Matter Intake (lbs/day)
+# Nutritional requirements for different stages (only for sheep weighing 154 lbs)
+sheep_nutrition_data = {
+    "Maintenance_Single": {"weeks": 16, "dm_intake": 2.6, "tdn": 1.5, "protein": 0.25, "tdn_pct": 57.69, "protein_pct": 9.62},
+    "Maintenance_Twin": {"weeks": 14, "dm_intake": 2.6, "tdn": 1.5, "protein": 0.25, "tdn_pct": 57.69, "protein_pct": 9.62},
+    "Flushing": {"weeks": 5, "dm_intake": 4.0, "tdn": 2.3, "protein": 0.36, "tdn_pct": 57.50, "protein_pct": 9.00},
+    "Nonlactating": {"weeks": 15, "dm_intake": 3.1, "tdn": 1.7, "protein": 0.29, "tdn_pct": 54.84, "protein_pct": 9.35},
+    "Last_4_Weeks_Gestation": {"weeks": 4, "dm_intake": 4.0, "tdn": 2.3, "protein": 0.42, "tdn_pct": 57.50, "protein_pct": 10.50},
+    "First_6_Weeks_Lactation_Single": {"weeks": 8, "dm_intake": 5.5, "tdn": 3.6, "protein": 0.73, "tdn_pct": 65.45, "protein_pct": 13.27},
+    "First_6_Weeks_Lactation_Twin": {"weeks": 8, "dm_intake": 6.2, "tdn": 4.0, "protein": 0.92, "tdn_pct": 64.52, "protein_pct": 14.84},
+}
+
+# Hardcoded flushing stage
+current_nutrition_stage = "Last_4_Weeks_Gestation"
+
+# Set nutritional requirements based on the hardcoded stage
+nutrition = sheep_nutrition_data[current_nutrition_stage]
+protein_requirement_pct = nutrition["protein_pct"]
+tdn_requirement_pct = nutrition["tdn_pct"]
+daily_dmi_limit = nutrition["dm_intake"]
+
+print(f"Using {current_nutrition_stage} stage for sheep weighing 154 lbs:")
+print(f"  DM Intake: {daily_dmi_limit} lbs/day")
+print(f"  TDN Requirement: {tdn_requirement_pct}%")
+print(f"  Protein Requirement: {protein_requirement_pct}%")
 
 # Forage characteristics by maturity stage
 forage_quality = {
@@ -19,15 +39,16 @@ forage_quality = {
     "Dry_leached": {"protein": 3, "fiber": 35, "tdn": 30, "dm": 92}
 }
 
-# Select the current forage maturity stage to use
-current_stage = "Dry"  # Using Dry stage as in original code
+# Hardcoded forage stage
+current_forage_stage = "Dry" 
 
 # Set forage characteristics based on selected stage
-forage_protein_pct = forage_quality[current_stage]["protein"]
-forage_tdn_pct = forage_quality[current_stage]["tdn"]
-forage_dm_pct = forage_quality[current_stage]["dm"]  
+forage = forage_quality[current_forage_stage]
+forage_protein_pct = forage["protein"]
+forage_tdn_pct = forage["tdn"]
+forage_dm_pct = forage["dm"]  
 
-print(f"Using forage at {current_stage} stage: {forage_protein_pct}% protein, {forage_tdn_pct}% TDN, {forage_dm_pct}% DM")
+print(f"Using forage at {current_forage_stage} stage: {forage_protein_pct}% protein, {forage_tdn_pct}% TDN, {forage_dm_pct}% DM")
 
 # Dry matter availability per acre (lbs)
 available_forage_per_acre = 2000  # lbs/acre available forage
@@ -35,9 +56,10 @@ sheep_per_acre = 90  # Stocking rate (sheep per acre)
 
 # Correctly compute maximum forage intake per sheep (dry matter basis)
 max_forage_per_sheep = min(daily_dmi_limit, (available_forage_per_acre * forage_dm_pct / 100) / sheep_per_acre)
+min_forage_per_sheep = daily_dmi_limit * 0.5 if daily_dmi_limit * 0.5 <= max_forage_per_sheep else max_forage_per_sheep  # Minimum forage intake (75% of max)
 
 # Add forage intake as a decision variable
-forage_intake = pulp.LpVariable("forage_intake", lowBound=0, upBound=max_forage_per_sheep)
+forage_intake = pulp.LpVariable("forage_intake", lowBound=min_forage_per_sheep, upBound=max_forage_per_sheep)
 
 # Calculate max intake for Purina Accuration Range Pellet based on 1/3 protein rule
 total_protein_required_lbs = (protein_requirement_pct/100) * daily_dmi_limit  # 9.19% of 4.0 lbs
@@ -48,10 +70,10 @@ max_range_pellet_intake = max_protein_from_supplement_lbs / (range_pellet_protei
 # Update the supplements dictionary with calculated maximum intake
 supplements = {
     # Feed mill supplements
-    "Corn": {"cost": 0.15, "protein": 9, "tdn": 90, "dm": 88, "min_intake": 0, "max_intake": 3.0, "is_block": False},
+    "Corn": {"cost": 0.25, "protein": 9, "tdn": 90, "dm": 88, "min_intake": 0, "max_intake": 3.0, "is_block": False},
     "Soybean_Meal": {"cost": 0.30, "protein": 44, "tdn": 80, "dm": 89, "min_intake": 0, "max_intake": 2.0, "is_block": False},
     "Wheat_Middlings": {"cost": 0.13, "protein": 16, "tdn": 77, "dm": 89, "min_intake": 0, "max_intake": 2.5, "is_block": False},
-    "Molasses": {"cost": 0.20, "protein": 4, "tdn": 75, "dm": 75, "min_intake": 0, "max_intake": 0.5, "is_block": False},
+    "Molasses": {"cost": 0.20, "protein": 4, "tdn": 75, "dm": 75, "min_intake": 0.05, "max_intake": 0.5, "is_block": False},
     "Limestone": {"cost": 0.05, "protein": 0, "tdn": 0, "dm": 99, "min_intake": 0, "max_intake": 0.1, "is_block": False},
     
     # Feed store supplements
@@ -118,7 +140,7 @@ model.solve(solver)
 print(f"Status: {pulp.LpStatus[model.status]}")
 if model.status == pulp.LpStatusOptimal:
     # Daily intake per sheep
-    print("\nOptimal Feed Plan (Flushing Stage):")
+    print(f"\nOptimal Feed Plan ({current_nutrition_stage} Stage, Forage: {current_forage_stage}):")
     print(f"  Forage intake: {forage_intake.value():.2f} lbs/day")
     for feed in supplements:
         print(f"  {feed}: {supplement_intake[feed].value():.2f} lbs/day")
@@ -134,7 +156,7 @@ if model.status == pulp.LpStatusOptimal:
     actual_protein = forage_intake.value() * forage_protein_pct/100 + sum(supplement_intake[feed].value() * supplements[feed]["protein"]/100 for feed in supplements)
     actual_tdn = forage_intake.value() * forage_tdn_pct/100 + sum(supplement_intake[feed].value() * supplements[feed]["tdn"]/100 for feed in supplements)
     
-    print(f"\nNutritional Analysis:")
+    print(f"\nNutritional Analysis ({current_nutrition_stage} Stage):")
     print(f"  Protein: {actual_protein:.2f} lbs ({actual_protein/total_feed*100:.2f}%)")
     print(f"  Required protein: {protein_requirement_pct/100*daily_dmi_limit:.2f} lbs ({protein_requirement_pct:.2f}%)")
     print(f"  TDN: {actual_tdn:.2f} lbs ({actual_tdn/total_feed*100:.2f}%)")
@@ -149,7 +171,7 @@ if model.status == pulp.LpStatusOptimal:
     daily_supplement_all_sheep = total_supplement * sheep_per_acre
     total_supplement_needed = daily_supplement_all_sheep * days_on_pasture
     
-    print(f"\nSupplemental Feed Requirements:")
+    print(f"\nSupplemental Feed Requirements ({current_forage_stage} Forage):")
     print(f"  Daily supplement per sheep: {total_supplement:.2f} lbs/day")
     print(f"  Daily supplement for all {sheep_per_acre} sheep: {daily_supplement_all_sheep:.2f} lbs/day")
     print(f"  Total supplement needed for {days_on_pasture:.1f} days: {total_supplement_needed:.2f} lbs")
@@ -163,7 +185,7 @@ if model.status == pulp.LpStatusOptimal:
             feed_cost = supplements[feed]["cost"] * total_amount
             print(f"  {feed}: {daily_amount:.2f} lbs/day, {total_amount:.2f} lbs total (${feed_cost:.2f})")
     
-    print(f"\nPasture Duration Analysis:")
+    print(f"\nPasture Duration Analysis ({current_forage_stage} Forage):")
     print(f"  Sheep per acre: {sheep_per_acre}")
     print(f"  Total forage available: {total_available_forage:.2f} lbs DM")
     print(f"  Daily forage consumption (all sheep): {daily_forage_all_sheep:.2f} lbs DM/day")
@@ -174,13 +196,10 @@ if model.status == pulp.LpStatusOptimal:
     daily_cost_all_sheep = daily_cost_per_sheep * sheep_per_acre
     total_grazing_cost = daily_cost_all_sheep * days_on_pasture
     
-    print(f"\nFeed Cost Analysis:")
+    print(f"\nFeed Cost Analysis ({current_nutrition_stage} Stage, Forage: {current_forage_stage}):")
     print(f"  Feed Cost per sheep per day: ${daily_cost_per_sheep:.2f}")
     print(f"  Feed Cost for all {sheep_per_acre} sheep per day: ${daily_cost_all_sheep:.2f}")
     print(f"  Total feed costs for {days_on_pasture:.1f} days of grazing: ${total_grazing_cost:.2f}")
 else:
-    print("The model is infeasible. Here's what might be wrong:")
-    print("1. Your protein and TDN requirements may be comparing % to lbs")
-    print("2. Fix by changing constraints to:")
-    print("   model += pulp.lpSum(supplement_intake[feed] * supplements[feed]['protein']/100 for feed in supplements) + forage_protein_lbs >= (protein_requirement_pct/100) * daily_dmi_limit")
-    print("   model += pulp.lpSum(supplement_intake[feed] * supplements[feed]['tdn']/100 for feed in supplements) + forage_tdn_lbs >= (tdn_requirement_pct/100) * daily_dmi_limit")
+    print("The model is infeasible. Please check your constraints and inputs.")
+
